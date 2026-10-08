@@ -3984,18 +3984,32 @@ function speakSolution(title='',desc=''){
    window.speechSynthesis.speak(utter);
  }catch(e){}
 }
-function playReelTick(volume=.035){
+let emotionAudioCtx=null;
+function unlockEmotionAudio(){
  try{
-   const A=window.AudioContext||window.webkitAudioContext;if(!A)return;
-   const ctx=new A(),osc=ctx.createOscillator(),g=ctx.createGain();
-   osc.type='square';osc.frequency.setValueAtTime(820,ctx.currentTime);
-   g.gain.setValueAtTime(volume,ctx.currentTime);
-   g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.045);
-   osc.connect(g);g.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.05);
-   setTimeout(()=>ctx.close().catch(()=>{}),120);
+   const A=window.AudioContext||window.webkitAudioContext;
+   if(!A)return null;
+   if(!emotionAudioCtx)emotionAudioCtx=new A();
+   if(emotionAudioCtx.state==='suspended')emotionAudioCtx.resume().catch(()=>{});
+   return emotionAudioCtx;
+ }catch(e){return null}
+}
+function playReelTick(volume=.035,frequency=820,duration=.045){
+ try{
+   const ctx=unlockEmotionAudio();if(!ctx)return;
+   const osc=ctx.createOscillator(),g=ctx.createGain();
+   const now=ctx.currentTime;
+   osc.type='square';osc.frequency.setValueAtTime(frequency,now);
+   g.gain.setValueAtTime(Math.max(.0001,volume),now);
+   g.gain.exponentialRampToValueAtTime(.0001,now+duration);
+   osc.connect(g);g.connect(ctx.destination);osc.start(now);osc.stop(now+duration+.01);
  }catch(e){}
 }
 function spinSolutionWheel(){
+ const ctx=unlockEmotionAudio();
+ if(ctx){
+   try{const o=ctx.createOscillator(),g=ctx.createGain(),n=ctx.currentTime;g.gain.setValueAtTime(.0001,n);o.connect(g);g.connect(ctx.destination);o.start(n);o.stop(n+.02)}catch(e){}
+ }
  const sols=emotionSolutions();if(!sols.length)return;
  const reel=document.getElementById('solutionReel'),ready=document.getElementById('reelReady'),result=document.getElementById('solutionResult'),btn=document.getElementById('spinSolutionWheel');
  result.classList.remove('show');ready.classList.add('hidden');ready.style.display='none';btn.disabled=true;
@@ -4020,7 +4034,7 @@ function spinSolutionWheel(){
  setTimeout(()=>clearInterval(tickTimer),2450);
  setTimeout(()=>{
    clearInterval(tickTimer);
-   playReelTick(.06);
+   playReelTick(.075,1040,.09);
    reel.className='solution-reel finished';
    const items=reel.querySelectorAll('.reel-item');
    items.forEach(x=>x.classList.remove('focused'));
@@ -4509,13 +4523,16 @@ function showEmotionVideo(){
     pop.classList.add('show');
 
     if(audio){
+      audio.load();
       audio.currentTime=0;
       audio.volume=1;
+      audio.muted=false;
       const p=audio.play();
       if(p && typeof p.catch==='function'){
         p.catch(()=>{
           pop.style.pointerEvents='auto';
           pop.title='Toucher Pousse pour écouter';
+          pop.setAttribute('aria-label','Toucher Pousse pour écouter sa voix');
           pop.onclick=()=>{
             audio.currentTime=0;
             audio.play().catch(()=>{});
