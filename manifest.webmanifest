@@ -1,0 +1,22 @@
+{
+  "name": "FamiliZen",
+  "short_name": "FamiliZen",
+  "description": "Agenda visuel et organisation familiale pour enfants.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#f28b39",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
