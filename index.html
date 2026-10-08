@@ -2339,8 +2339,9 @@ html, body{
       </div>
       <div class="grid">
         <div class="card"><h2>🌅 Routine du matin</h2><div class="tasks" id="morningTasks"></div></div>
+        <div class="card"><h2>🌤️ Après-midi</h2><div class="tasks" id="afternoonTasks"></div></div>
         <div class="card"><h2>🌙 Routine du soir</h2><div class="tasks" id="eveningTasks"></div></div>
-        <div class="card" style="grid-column:1/-1"><h2>🎯 Missions bonus</h2><div class="tasks" id="bonusTasks"></div></div>
+        <div class="card"><h2>🎯 Missions bonus</h2><div class="tasks" id="bonusTasks"></div></div>
       </div>
       <div class="card" style="margin-top:18px"><h2>🏅 Mes badges</h2><div class="badge-grid" id="childBadgeGrid"></div></div>
     </section>
@@ -2562,8 +2563,8 @@ html, body{
             <div class="recurring-builder">
               <input class="input" id="newTaskName" placeholder="Ex. Préparer le cartable">
               <input class="input" id="newTaskPoints" type="number" min="1" value="5" placeholder="Points">
-              <select class="input" id="newTaskCategory"><option value="morning">Matin</option><option value="evening">Soir</option><option value="bonus">Bonus</option></select>
-              <select class="input" id="newTaskChild"><option value="Louise">Louise</option><option value="Nicolas">Nicolas</option><option value="Both">Les deux</option></select>
+              <select class="input" id="newTaskCategory"><option value="morning">Matin</option><option value="afternoon">Après-midi</option><option value="evening">Soir</option><option value="bonus">Bonus</option></select>
+              <select class="input" id="newTaskChild"></select>
             </div>
             <div class="day-pills" id="taskDays">
               <label class="day-pill"><input type="checkbox" value="Lun" checked><span>Lun</span></label><label class="day-pill"><input type="checkbox" value="Mar" checked><span>Mar</span></label><label class="day-pill"><input type="checkbox" value="Mer" checked><span>Mer</span></label><label class="day-pill"><input type="checkbox" value="Jeu" checked><span>Jeu</span></label><label class="day-pill"><input type="checkbox" value="Ven" checked><span>Ven</span></label><label class="day-pill"><input type="checkbox" value="Sam"><span>Sam</span></label><label class="day-pill"><input type="checkbox" value="Dim"><span>Dim</span></label>
@@ -3706,22 +3707,42 @@ function renderBadgeGrids(){
  const parent=document.getElementById('parentBadgeGrid');if(parent)parent.innerHTML=html;
 }
 function renderParentDashboard(){
- const lp=state.familyPoints?.Louise||0,np=state.familyPoints?.Nicolas||0;
- const l=document.getElementById('louiseAdminPoints');if(l)l.textContent=lp;const n=document.getElementById('nicolasAdminPoints');if(n)n.textContent=np;
- const lprog=document.getElementById('louiseAdminProgress');if(lprog)lprog.textContent=`${(state.tasksByProfile?.Louise||[]).filter(t=>t.done).length} missions terminées • ${(state.rewardHistory?.Louise||[]).length} récompenses utilisées`;
- const nprog=document.getElementById('nicolasAdminProgress');if(nprog)nprog.textContent=`${(state.tasksByProfile?.Nicolas||[]).filter(t=>t.done).length} missions terminées • ${(state.rewardHistory?.Nicolas||[]).length} récompenses utilisées`;
+ const children=configuredChildren();
  const best=document.getElementById('parentBestStreak');if(best)best.textContent=`${state.streak||0} j`;
- const pt=document.getElementById('parentTaskList');if(pt){let rows=[];for(const who of ['Louise','Nicolas'])for(const t of (state.tasksByProfile?.[who]||[]))rows.push(`<div class="parent-task-row"><span class="who">${who}</span><div><b>${taskIcon(t.name)} ${t.name}</b><small>${t.category==='morning'?'Matin':t.category==='evening'?'Soir':'Bonus'} • ${(t.days||[]).join(' ')||'Ponctuelle'}</small></div><b>+${t.points} ⭐</b><button class="mini-delete" onclick="deleteTaskFor('${who}',${t.id})">✕</button></div>`);pt.innerHTML=rows.join('')||'<div class="notice">Aucune mission.</div>'}
+
+ const childSelect=document.getElementById('newTaskChild');
+ if(childSelect){
+   const previous=childSelect.value;
+   const options=children.map(c=>`<option value="${c.id}">${c.name}</option>`);
+   if(children.length>1) options.push('<option value="ALL">Tous les enfants</option>');
+   childSelect.innerHTML=options.join('');
+   if([...childSelect.options].some(o=>o.value===previous)) childSelect.value=previous;
+   else if(children.some(c=>c.id===state.profile)) childSelect.value=state.profile;
+ }
+
+ const pt=document.getElementById('parentTaskList');
+ if(pt){
+   let rows=[];
+   for(const child of children){
+     const list=state.tasksByProfile?.[child.id]||[];
+     for(const t of list){
+       rows.push(`<div class="parent-task-row"><span class="who">${child.name}</span><div><b>${taskIcon(t.name)} ${t.name}</b><small>${t.category==='morning'?'Matin':t.category==='afternoon'?'Après-midi':t.category==='evening'?'Soir':'Bonus'} • ${(t.days||[]).join(' ')||'Ponctuelle'}</small></div><b>+${t.points} ⭐</b><button class="mini-delete" onclick="deleteTaskFor('${child.id}',${t.id})">✕</button></div>`);
+     }
+   }
+   pt.innerHTML=rows.join('')||'<div class="notice">Aucune mission.</div>';
+ }
+
  const pr=document.getElementById('parentRewardList');if(pr)pr.innerHTML=state.rewards.map((r,i)=>`<div class="list-item"><span>${r.emoji} <b>${r.name}</b></span><span><b>${r.cost} ⭐</b> <button class="mini-delete" onclick="deleteReward(${i})">✕</button></span></div>`).join('');
- const prefs=state.preferences||{};
- const ids=[['louiseFocusPref','Louise','focus'],['louiseVisualPref','Louise','visual'],['louiseCelebratePref','Louise','celebrate'],['nicolasFocusPref','Nicolas','focus'],['nicolasVisualPref','Nicolas','visual'],['nicolasCelebratePref','Nicolas','celebrate']];
- ids.forEach(([id,p,k])=>{const e=document.getElementById(id);if(e)e.checked=!!prefs[p]?.[k]});
  const mr=document.getElementById('morningReminder');if(mr)mr.value=state.reminders?.morning||'07:30';const er=document.getElementById('eveningReminder');if(er)er.value=state.reminders?.evening||'18:30';
  const ns=document.getElementById('notificationStatus');if(ns)ns.textContent=('Notification'in window)?`Autorisation : ${Notification.permission}`:'Notifications non prises en charge ici';
  const rs=document.getElementById('rewardSoundPref');if(rs)rs.checked=state.rewardSoundEnabled!==false;
  populateEmotionVoiceSelect();
 }
-window.deleteTaskFor=(who,id)=>{state.tasksByProfile[who]=state.tasksByProfile[who].filter(t=>t.id!==id);render();toast('Mission supprimée')};
+window.deleteTaskFor=(who,id)=>{
+ state.tasksByProfile=state.tasksByProfile||{};
+ state.tasksByProfile[who]=(state.tasksByProfile[who]||[]).filter(t=>t.id!==id);
+ save();render();toast('Mission supprimée');
+};
 window.deleteReward=(i)=>{state.rewards.splice(i,1);render();toast('Récompense supprimée')};
 function renderTablet(){
  const now=new Date();const c=document.getElementById('tabletClock');if(c)c.textContent=now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});const d=document.getElementById('tabletDate');if(d)d.textContent=now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
@@ -4157,10 +4178,11 @@ function render(){const tasks=currentTasks();
  const streakMeta=document.getElementById('homeStreakMeta');if(streakMeta)streakMeta.textContent=`${state.streak} jours de série`;
   const hm=document.getElementById('homeMorning'),ha=document.getElementById('homeAfternoon'),he=document.getElementById('homeEvening');
  if(hm)hm.innerHTML=tasks.filter(t=>t.category==='morning').map(homeTaskCard).join('');
- if(ha)ha.innerHTML=tasks.filter(t=>t.category==='bonus').map(homeTaskCard).join('');
+ if(ha)ha.innerHTML=tasks.filter(t=>t.category==='afternoon').map(homeTaskCard).join('');
  if(he)he.innerHTML=tasks.filter(t=>t.category==='evening').map(homeTaskCard).join('');
 
  document.getElementById('morningTasks').innerHTML=tasks.filter(t=>t.category==='morning').map(taskHtml).join('');
+ document.getElementById('afternoonTasks').innerHTML=tasks.filter(t=>t.category==='afternoon').map(taskHtml).join('');
  document.getElementById('eveningTasks').innerHTML=tasks.filter(t=>t.category==='evening').map(taskHtml).join('');
  document.getElementById('bonusTasks').innerHTML=tasks.filter(t=>t.category==='bonus').map(taskHtml).join('');
  document.getElementById('rewardGrid').innerHTML=state.rewards.map(r=>`<div class="reward"><div class="emoji">${r.emoji}</div><h3>${r.name}</h3><div class="cost">${r.cost} points</div><div style="height:10px"></div><button class="btn ${state.points>=r.cost?'primary':'ghost'}" ${state.points<r.cost?'disabled':''} onclick="redeem(${r.cost},'${r.name.replace(/'/g,"\\'")}')">${state.points>=r.cost?'Débloquer':'Encore '+(r.cost-state.points)+' pts'}</button></div>`).join('');
@@ -4561,7 +4583,28 @@ function closeParentLock(){document.getElementById('parentLockModal').classList.
 function validateParentPin(){const input=document.getElementById('parentPinInput');if(input.value===state.parentPin){parentUnlocked=true;const btn=pendingParentButton||document.querySelector('.nav button[data-screen="parent"]');closeParentLock();activateScreen(btn);toast('Espace parents déverrouillé 🔓')}else{document.getElementById('parentPinError').textContent='Code incorrect';input.select()}}
 document.querySelectorAll('[data-screen]').forEach(b=>b.onclick=()=>{if(b.dataset.screen==='parent'&&!parentUnlocked){openParentLock(b);return}activateScreen(b)});document.querySelectorAll('[data-screen-jump]').forEach(b=>b.onclick=()=>document.querySelector(`.nav button[data-screen="${b.dataset.screenJump}"]`).click());document.querySelectorAll('.avatar').forEach(a=>a.onclick=()=>{parentUnlocked=false;setProfile(a.dataset.profile,false);toast('Profil changé')});
 document.getElementById('validateParentPin').onclick=validateParentPin;document.getElementById('cancelParentPin').onclick=closeParentLock;document.getElementById('parentPinInput').addEventListener('keydown',e=>{if(e.key==='Enter')validateParentPin();if(e.key==='Escape')closeParentLock()});document.getElementById('parentLockModal').addEventListener('click',e=>{if(e.target.id==='parentLockModal')closeParentLock()});
-document.getElementById('saveTaskBtn').onclick=()=>{const name=document.getElementById('newTaskName').value.trim(),points=Number(document.getElementById('newTaskPoints').value),category=document.getElementById('newTaskCategory').value,child=document.getElementById('newTaskChild').value;const days=[...document.querySelectorAll('#taskDays input:checked')].map(x=>x.value);if(!name||!points)return toast('Complète le nom et les points');const makeTask=(offset=0)=>({id:Date.now()+offset,name,points,category,done:false,days});if(child==='Both'){state.tasksByProfile.Louise.push(makeTask(1));state.tasksByProfile.Nicolas.push(makeTask(2))}else state.tasksByProfile[child].push(makeTask());state.activity.unshift(`➕ Nouvelle mission : ${name}`);document.getElementById('newTaskName').value='';render();toast('Mission ajoutée')};const addTaskBtn=document.getElementById('addTaskBtn');if(addTaskBtn)addTaskBtn.onclick=()=>document.getElementById('newTaskName').focus();const resetBtn=document.getElementById('resetBtn');if(resetBtn)resetBtn.onclick=()=>{state=structuredClone(defaults);const shared=structuredClone(state.visual);const louise=structuredClone(shared).filter(a=>!['Orthophoniste','Psychologue'].includes(a.title)).filter(a=>!(a.day==='Mercredi'&&a.title==='École'));const devoirIndex=louise.findIndex(a=>a.day==='Mercredi'&&a.moment==='morning'&&a.title==='Devoirs');const jeu={id:9122,day:'Mercredi',moment:'morning',title:'Jeux',emoji:'🧸',type:'normal',finished:false};if(!louise.some(a=>a.day==='Mercredi'&&a.moment==='morning'&&a.title==='Jeux')){if(devoirIndex>=0)louise.splice(devoirIndex+1,0,jeu);else louise.push(jeu)}state.visualByProfile={Louise:louise,Nicolas:shared};save();render();toast('Données réinitialisées')};document.querySelectorAll('[data-agenda-view]').forEach(b=>b.onclick=()=>{agendaView=b.dataset.agendaView;if(agendaView==='day')agendaDayIndex=(new Date().getDay()+6)%7;renderSchedule();});
+document.getElementById('saveTaskBtn').onclick=()=>{
+ const name=document.getElementById('newTaskName').value.trim();
+ const points=Number(document.getElementById('newTaskPoints').value);
+ const category=document.getElementById('newTaskCategory').value;
+ const child=document.getElementById('newTaskChild').value;
+ const days=[...document.querySelectorAll('#taskDays input:checked')].map(x=>x.value);
+ if(!name||!points)return toast('Complète le nom et les points');
+ const children=configuredChildren();
+ if(!children.length)return toast('Ajoute d’abord un profil enfant');
+ state.tasksByProfile=state.tasksByProfile||{};
+ const targets=child==='ALL'?children.map(c=>c.id):[child];
+ const now=Date.now();
+ targets.forEach((id,index)=>{
+   state.tasksByProfile[id]=state.tasksByProfile[id]||[];
+   state.tasksByProfile[id].push({id:now+index,name,points,category,done:false,days:[...days]});
+ });
+ state.activity=state.activity||[];
+ state.activity.unshift(`➕ Nouvelle mission : ${name}`);
+ document.getElementById('newTaskName').value='';
+ save();render();
+ toast(targets.length>1?'Mission ajoutée à tous les enfants':'Mission ajoutée');
+};const addTaskBtn=document.getElementById('addTaskBtn');if(addTaskBtn)addTaskBtn.onclick=()=>document.getElementById('newTaskName').focus();const resetBtn=document.getElementById('resetBtn');if(resetBtn)resetBtn.onclick=()=>{state=structuredClone(defaults);const shared=structuredClone(state.visual);const louise=structuredClone(shared).filter(a=>!['Orthophoniste','Psychologue'].includes(a.title)).filter(a=>!(a.day==='Mercredi'&&a.title==='École'));const devoirIndex=louise.findIndex(a=>a.day==='Mercredi'&&a.moment==='morning'&&a.title==='Devoirs');const jeu={id:9122,day:'Mercredi',moment:'morning',title:'Jeux',emoji:'🧸',type:'normal',finished:false};if(!louise.some(a=>a.day==='Mercredi'&&a.moment==='morning'&&a.title==='Jeux')){if(devoirIndex>=0)louise.splice(devoirIndex+1,0,jeu);else louise.push(jeu)}state.visualByProfile={Louise:louise,Nicolas:shared};save();render();toast('Données réinitialisées')};document.querySelectorAll('[data-agenda-view]').forEach(b=>b.onclick=()=>{agendaView=b.dataset.agendaView;if(agendaView==='day')agendaDayIndex=(new Date().getDay()+6)%7;renderSchedule();});
 function setPictoLibrary(open){const panel=document.getElementById('libraryCard'),back=document.getElementById('pictoBackdrop'),btn=document.getElementById('toggleLibraryBtn');panel.style.display=open?'block':'none';back.classList.toggle('show',open);btn.classList.toggle('active',open);if(open){renderPictoCategories();renderLibrary();const input=document.getElementById('pictoSearch');if(input){setTimeout(()=>input.focus(),30);}}}
 document.getElementById('toggleLibraryBtn').onclick=()=>setPictoLibrary(document.getElementById('libraryCard').style.display==='none');
 document.getElementById('closePictoLibrary').onclick=()=>setPictoLibrary(false);
