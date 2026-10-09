@@ -3356,7 +3356,32 @@ if(!state.planningProfilesCorrectedV84){
   localStorage.setItem('familizen_state_v2',JSON.stringify(state));
 }
 
-function currentTasks(){return state.tasksByProfile?.[state.profile]||[]}
+function missionDateKey(){
+  const d=new Date();
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function ensureDailyMissionReset(){
+  const today=missionDateKey();
+  if(state.missionDayKey===today)return false;
+
+  // Les coches de mission sont propres à chaque journée.
+  if(state.tasksByProfile){
+    Object.values(state.tasksByProfile).forEach(list=>{
+      (list||[]).forEach(t=>t.done=false);
+    });
+  }
+
+  state.missionDayKey=today;
+  localStorage.setItem('familizen_state_v2',JSON.stringify(state));
+  return true;
+}
+function currentTasks(){
+  ensureDailyMissionReset();
+  return state.tasksByProfile?.[state.profile]||[];
+}
 
 if(!state.familyPoints)state.familyPoints={Louise:0,Nicolas:0};
 if(state.familyPoints.Louise==null)state.familyPoints.Louise=0;
@@ -3389,6 +3414,7 @@ function currentVisual(){return state.visualByProfile?.[state.profile]||[];}
 if(!state.contacts) state.contacts=structuredClone(defaults.contacts);
 const days=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];const moments=[['morning','Matin','☀️'],['midday','Midi','🌞'],['afternoon','Après-midi','🌤️'],['evening','Soirée','🌇'],['night','Nuit','🌙']];let agendaView='week';let agendaDayIndex=(new Date().getDay()+6)%7;
 const save=()=>localStorage.setItem('familizen_state_v2',JSON.stringify(state));
+ensureDailyMissionReset();
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
 
 function playRewardFanfare(){
@@ -4655,6 +4681,12 @@ document.querySelectorAll('[data-tablet-profile]').forEach(b=>b.onclick=()=>{par
 setInterval(renderTablet,30000);
 if('serviceWorker'in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('service-worker.js').catch(()=>{});
 scheduleOpenPageReminders();
+setInterval(()=>{
+  if(ensureDailyMissionReset()){
+    render();
+    toast('Nouvelle journée : les missions sont de nouveau prêtes à être cochées ☀️');
+  }
+},60000);
 if('speechSynthesis' in window){
   window.speechSynthesis.onvoiceschanged=()=>populateEmotionVoiceSelect();
   setTimeout(populateEmotionVoiceSelect,250);
